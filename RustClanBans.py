@@ -11,12 +11,14 @@ class Api(object):
         self.steamKey = steamKey
         self.discordKey = discordKey
 
-    def get_data(self, guild, channel, name):
+    def get_data(self, guild, channel, name, offset):
+        print("GETTING DATA")
         url = "https://discord.com/api/v9/guilds/" + guild + "/messages/search"
         params = {
             "channel_id": channel,
             "content": name,
             "include_nsfw": "true",
+            "offset":offset
         }
         headers = {
             "authorization": self.discordKey
@@ -95,27 +97,40 @@ class config(object):
         time.sleep(3);
         sys.exit()
 
+def find_banned_accounts(data, exploredIDs, bannedInfo):
+    FileHandler.write_json("outpu2.txt", data)
+    for message in data["messages"]:
+        fields = message[0]["embeds"][0]["fields"]
+        print(fields)
+        print(bannedInfo)
+
+        for i in fields:
+            currentField = i["value"]
+            currentIDs = Utils.getSteamIDS(currentField)
+            for id in currentIDs:
+                if id not in exploredIDs:
+                    info = api.get_steam(id)["players"][0]
+                    exploredIDs[id] = 1
+                    FileHandler.write_json("output.txt", info)
+                    if info["NumberOfGameBans"] >= 1:
+                        bannedInfo[id] = (info["DaysSinceLastBan"], info["NumberOfGameBans"])
+
 config = config()
 api = Api(config.steamKey, config.discordKey)
-data = api.get_data(config.guildID, config.channelID, config.name) #RA 10x us event wins channel
-
+data = api.get_data(config.guildID, config.channelID, config.name, 0)
+time = time.time()
+global exploredIDs
+global bannedInfo
 exploredIDs = dict()
 bannedInfo = dict()
-for message in data["messages"]:
-    fields = message[0]["embeds"][0]["fields"]
-    print(fields)
-    print(bannedInfo)
+find_banned_accounts(data, exploredIDs, bannedInfo)
+offset = 24
+total_results = data["total_results"]
+while total_results > offset:
+    data = api.get_data(config.guildID, config.channelID, config.name, offset)
+    find_banned_accounts(data, exploredIDs, bannedInfo)
+    offset += 24
 
-    for i in fields:
-        currentField = i["value"]
-        currentIDs = Utils.getSteamIDS(currentField)
-        for id in currentIDs:
-            if id not in exploredIDs:
-                info = api.get_steam(id)["players"][0]
-                exploredIDs[id] = 1
-                FileHandler.write_json("output.txt", info)
-                if info["NumberOfGameBans"] >= 1:
-                    bannedInfo[id] = (info["DaysSinceLastBan"], info["NumberOfGameBans"])
 bannedString = ""
 for i,v in bannedInfo.items():
     bannedString += f"{i} {v[0]} {v[1]}\n"
