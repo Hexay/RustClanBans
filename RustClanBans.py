@@ -112,7 +112,7 @@ def find_banned_accounts(data, exploredIDs, bannedInfo):
                     info = api.get_steam(id)["players"][0]
                     exploredIDs[id] = 1
                     FileHandler.write_json("output.txt", info)
-                    if info["NumberOfGameBans"]-info["NumberOfVacBans"] >= 1:
+                    if info["NumberOfGameBans"]-info["NumberOfVACBans"] >= 1:
                         bannedInfo[id] = (info["DaysSinceLastBan"], info["NumberOfGameBans"])
 
 config = config()
